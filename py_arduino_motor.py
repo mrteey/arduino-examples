@@ -1,8 +1,12 @@
+import dotenv
 import serial
 import time
+import os
+
+dotenv.load_dotenv()
 
 # Configure the serial connection
-arduino = serial.Serial('/dev/cu.usbmodem11301', 9600, timeout=1)
+arduino = serial.Serial(os.getenv("BOARD_ID"), 9600, timeout=1)
 time.sleep(2)  # Wait for connection to establish
 
 try:
