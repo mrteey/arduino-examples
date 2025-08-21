@@ -73,7 +73,7 @@ void moveMotor(bool clockwise, int steps) {
     // Step the motor
     for (int i = 0; i < steps; i++) {
         // Check limit switch (active LOW)
-        if (digitalRead(LIMIT_SWITCH_PIN) == LOW) {
+        if (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
             Serial.println("Limit switch pressed! Stopping motor.");
             break;
         }
