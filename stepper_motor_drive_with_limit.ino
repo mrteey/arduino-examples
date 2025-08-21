@@ -24,7 +24,7 @@ void setup() {
     digitalWrite(ENABLE_PIN, LOW);
 
     // Initialize limit switch pin
-    pinMode(LIMIT_SWITCH_PIN, INPUT_PULLUP); // Assumes switch pulls LOW when pressed
+    pinMode(LIMIT_SWITCH_PIN, INPUT_PULLUP); // Switch pulls HIGH when pressed
 
     Serial.println("Stepper Motor Controller Ready");
     Serial.println("Commands: 'right [steps]' or 'left [steps]'");
@@ -92,6 +92,17 @@ void moveMotor(bool clockwise, int steps) {
         // Check limit switch (active HIGH)
         if (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
             Serial.println("Limit switch triggered! Stopping motor after " + String(i) + " steps.");
+            
+            // Move 100 steps in the opposite direction
+            Serial.println("Moving 100 steps in opposite direction...");
+            digitalWrite(DIR_PIN, clockwise ? LOW : HIGH); // Reverse direction
+            for (int j = 0; j < 100; j++) {
+                digitalWrite(STEP_PIN, HIGH);
+                delayMicroseconds(stepDelay);
+                digitalWrite(STEP_PIN, LOW);
+                delayMicroseconds(stepDelay);
+            }
+            Serial.println("Reverse movement complete");
             break;
         }
         digitalWrite(STEP_PIN, HIGH);
@@ -113,6 +124,17 @@ void moveMotorIndefinite(bool clockwise) {
         // Check limit switch (active HIGH)
         if (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
             Serial.println("Limit switch triggered! Stopping motor after " + String(stepCount) + " steps.");
+            
+            // Move 100 steps in the opposite direction
+            Serial.println("Moving 100 steps in opposite direction...");
+            digitalWrite(DIR_PIN, clockwise ? LOW : HIGH); // Reverse direction
+            for (int j = 0; j < 100; j++) {
+                digitalWrite(STEP_PIN, HIGH);
+                delayMicroseconds(stepDelay);
+                digitalWrite(STEP_PIN, LOW);
+                delayMicroseconds(stepDelay);
+            }
+            Serial.println("Reverse movement complete");
             break;
         }
         
