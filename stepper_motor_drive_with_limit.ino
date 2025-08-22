@@ -1,6 +1,6 @@
-// Stepper Motor Control with TB6600 Driver
-// Commands: "right [steps]" or "left [steps]"
-// Use -1 for indefinite movement until limit switch is triggered
+// Stepper Motor Control with TB6600 Driver and Array-based Positioning
+// Commands: 'start', 'a', 'b', 'c', 'd', 'e', 'f', 'h'
+// Motor moves to the position corresponding to the array index of the command
 
 #define STEP_PIN 5
 #define DIR_PIN 2
@@ -10,6 +10,14 @@
 
 // Motor parameters
 int stepDelay = 1000; // microseconds between steps (adjust for speed)
+
+// Position array and motor control variables
+String positions[8] = {"start", "a", "b", "c", "d", "e", "f", "h"};
+const int MAX_STEPS = 10000; // Total steps from index 0 to index 7
+const int STEPS_PER_INDEX = MAX_STEPS / 7; // Steps between each index (10000/7 ≈ 1428)
+
+int currentPosition = -1; // Current motor position index (-1 means unknown)
+bool isCalibrated = false; // Flag to track if motor has been calibrated to start position
 
 void setup() {
     // Initialize serial communication
@@ -24,12 +32,14 @@ void setup() {
     digitalWrite(ENABLE_PIN, LOW);
 
     // Initialize limit switch pin
-    pinMode(LIMIT_SWITCH_PIN, INPUT_PULLUP); // Switch pulls HIGH when pressed
+    pinMode(LIMIT_SWITCH_PIN, INPUT_PULLUP);
 
-    Serial.println("Stepper Motor Controller Ready");
-    Serial.println("Commands: 'right [steps]' or 'left [steps]'");
-    Serial.println("Use -1 for indefinite movement until limit switch is triggered");
-    Serial.println("Send 'stop' during indefinite movement to manually stop");
+    Serial.println("Array-based Stepper Motor Controller Ready");
+    Serial.println("Available positions: start, a, b, c, d, e, f, h");
+    Serial.println("Calibrating to start position...");
+    
+    // Move to start position (index 0) on startup
+    calibrateToStart();
 }
 
 void loop() {
@@ -42,45 +52,74 @@ void loop() {
 }
 
 void parseAndExecuteCommand(String command) {
-    int spaceIndex = command.indexOf(' ');
+    // Find the index of the command in the positions array
+    int targetIndex = -1;
+    for (int i = 0; i < 8; i++) {
+        if (command.equals(positions[i])) {
+            targetIndex = i;
+            break;
+        }
+    }
     
-    if (spaceIndex == -1) {
-        Serial.println("Invalid command format");
+    if (targetIndex == -1) {
+        Serial.println("Invalid command. Available positions: start, a, b, c, d, e, f, h");
         return;
     }
     
-    String direction = command.substring(0, spaceIndex);
-    String stepsStr = command.substring(spaceIndex + 1);
-    int steps = stepsStr.toInt();
+    if (!isCalibrated) {
+        Serial.println("Motor not calibrated. Calibrating to start position...");
+        calibrateToStart();
+    }
     
-    if (steps == 0 && stepsStr != "0") {
-        Serial.println("Invalid step count");
+    moveToPosition(targetIndex);
+}
+
+void calibrateToStart() {
+    Serial.println("Calibrating: Moving left to limit switch...");
+    
+    // Move left until limit switch is hit
+    digitalWrite(DIR_PIN, LOW); // Left direction
+    
+    while (digitalRead(LIMIT_SWITCH_PIN) == LOW) {
+        digitalWrite(STEP_PIN, HIGH);
+        delayMicroseconds(stepDelay);
+        digitalWrite(STEP_PIN, LOW);
+        delayMicroseconds(stepDelay);
+    }
+    
+    Serial.println("Limit switch triggered! Moving 100 steps right to clear switch...");
+    
+    // Move 100 steps right to clear the limit switch
+    digitalWrite(DIR_PIN, HIGH); // Right direction
+    for (int i = 0; i < 100; i++) {
+        digitalWrite(STEP_PIN, HIGH);
+        delayMicroseconds(stepDelay);
+        digitalWrite(STEP_PIN, LOW);
+        delayMicroseconds(stepDelay);
+    }
+    
+    currentPosition = 0; // Now at start position
+    isCalibrated = true;
+    Serial.println("Calibration complete. Motor is at 'start' position.");
+}
+
+void moveToPosition(int targetIndex) {
+    if (targetIndex == currentPosition) {
+        Serial.println("Already at position: " + positions[targetIndex]);
         return;
     }
     
-    if (direction == "right") {
-        if (steps == -1) {
-            moveMotorIndefinite(true);
-            Serial.println("Moving right indefinitely until limit switch");
-        } else if (steps > 0) {
-            moveMotor(true, steps);
-            Serial.println("Moving right " + String(steps) + " steps");
-        } else {
-            Serial.println("Invalid step count. Use positive number or -1 for indefinite");
-        }
-    } else if (direction == "left") {
-        if (steps == -1) {
-            moveMotorIndefinite(false);
-            Serial.println("Moving left indefinitely until limit switch");
-        } else if (steps > 0) {
-            moveMotor(false, steps);
-            Serial.println("Moving left " + String(steps) + " steps");
-        } else {
-            Serial.println("Invalid step count. Use positive number or -1 for indefinite");
-        }
-    } else {
-        Serial.println("Invalid direction. Use 'right' or 'left'");
-    }
+    int stepsToMove = abs(targetIndex - currentPosition) * STEPS_PER_INDEX;
+    bool moveRight = targetIndex > currentPosition;
+    
+    Serial.println("Moving from position '" + positions[currentPosition] + "' (index " + String(currentPosition) + 
+                  ") to '" + positions[targetIndex] + "' (index " + String(targetIndex) + ")");
+    Serial.println("Direction: " + String(moveRight ? "right" : "left") + ", Steps: " + String(stepsToMove));
+    
+    moveMotor(moveRight, stepsToMove);
+    currentPosition = targetIndex;
+    
+    Serial.println("Movement complete. Now at position: " + positions[currentPosition]);
 }
 
 void moveMotor(bool clockwise, int steps) {
@@ -93,68 +132,27 @@ void moveMotor(bool clockwise, int steps) {
         if (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
             Serial.println("Limit switch triggered! Stopping motor after " + String(i) + " steps.");
             
-            // Move 100 steps in the opposite direction
-            Serial.println("Moving 100 steps in opposite direction...");
-            digitalWrite(DIR_PIN, clockwise ? LOW : HIGH); // Reverse direction
-            for (int j = 0; j < 100; j++) {
-                digitalWrite(STEP_PIN, HIGH);
-                delayMicroseconds(stepDelay);
-                digitalWrite(STEP_PIN, LOW);
-                delayMicroseconds(stepDelay);
-            }
-            Serial.println("Reverse movement complete");
-            break;
-        }
-        digitalWrite(STEP_PIN, HIGH);
-        delayMicroseconds(stepDelay);
-        digitalWrite(STEP_PIN, LOW);
-        delayMicroseconds(stepDelay);
-    }
-
-    Serial.println("Movement complete");
-}
-
-void moveMotorIndefinite(bool clockwise) {
-    // Set direction
-    digitalWrite(DIR_PIN, clockwise ? HIGH : LOW);
-
-    // Move indefinitely until limit switch is triggered
-    long stepCount = 0;
-    while (true) {
-        // Check limit switch (active HIGH)
-        if (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
-            Serial.println("Limit switch triggered! Stopping motor after " + String(stepCount) + " steps.");
+            // If we hit the limit switch, we're at position 0 (start)
+            currentPosition = 0;
             
-            // Move 100 steps in the opposite direction
-            Serial.println("Moving 100 steps in opposite direction...");
-            digitalWrite(DIR_PIN, clockwise ? LOW : HIGH); // Reverse direction
+            // Move 100 steps in the opposite direction to clear the switch
+            Serial.println("Moving 100 steps right to clear switch...");
+            digitalWrite(DIR_PIN, HIGH); // Always move right when clearing limit switch
             for (int j = 0; j < 100; j++) {
                 digitalWrite(STEP_PIN, HIGH);
                 delayMicroseconds(stepDelay);
                 digitalWrite(STEP_PIN, LOW);
                 delayMicroseconds(stepDelay);
             }
-            Serial.println("Reverse movement complete");
+            Serial.println("Limit switch cleared");
             break;
         }
-        
         digitalWrite(STEP_PIN, HIGH);
         delayMicroseconds(stepDelay);
         digitalWrite(STEP_PIN, LOW);
         delayMicroseconds(stepDelay);
-        
-        stepCount++;
-        
-        // Optional: Check for serial interrupt to allow manual stopping
-        if (Serial.available() > 0) {
-            String interrupt = Serial.readStringUntil('\n');
-            interrupt.trim();
-            if (interrupt == "stop") {
-                Serial.println("Manual stop received after " + String(stepCount) + " steps.");
-                break;
-            }
-        }
     }
 
-    Serial.println("Indefinite movement complete");
+    Serial.println("Motor movement complete");
 }
+
