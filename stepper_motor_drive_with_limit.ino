@@ -2,7 +2,7 @@
 // Commands: 'start', 'a', 'b', 'c', 'd', 'e', 'f', 'h'
 // Motor moves to the position corresponding to the array index of the command
 
-#define STEP_PIN 5
+#define STEP_PIN 6
 #define DIR_PIN 2
 
 #define ENABLE_PIN 8
@@ -12,9 +12,9 @@
 int stepDelay = 1000; // microseconds between steps (adjust for speed)
 
 // Position array and motor control variables
-String positions[8] = {"start", "a", "b", "c", "d", "e", "f", "h"};
-const int MAX_STEPS = 10000; // Total steps from index 0 to index 7
-const int STEPS_PER_INDEX = MAX_STEPS / 7; // Steps between each index (10000/7 ≈ 1428)
+String positions[5] = {"start", "chiefs", "commanders", "commandants", "end"};
+const int MAX_STEPS = 10000; // Total steps from index 0 to index 4
+const int STEPS_PER_INDEX = MAX_STEPS / 4; // Steps between each index (10000/4 ≈ 2500)
 
 int currentPosition = -1; // Current motor position index (-1 means unknown)
 bool isCalibrated = false; // Flag to track if motor has been calibrated to start position
@@ -35,7 +35,7 @@ void setup() {
     pinMode(LIMIT_SWITCH_PIN, INPUT_PULLUP);
 
     Serial.println("Array-based Stepper Motor Controller Ready");
-    Serial.println("Available positions: start, a, b, c, d, e, f, h");
+    Serial.println("Available positions: start, chief, commanders, nafsfa, end");
     Serial.println("Calibrating to start position...");
     
     // Move to start position (index 0) on startup
@@ -54,7 +54,7 @@ void loop() {
 void parseAndExecuteCommand(String command) {
     // Find the index of the command in the positions array
     int targetIndex = -1;
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 5; i++) {
         if (command.equals(positions[i])) {
             targetIndex = i;
             break;
@@ -62,7 +62,7 @@ void parseAndExecuteCommand(String command) {
     }
     
     if (targetIndex == -1) {
-        Serial.println("Invalid command. Available positions: start, a, b, c, d, e, f, h");
+        Serial.println("Invalid command. Available positions: start, chief, commanders, nafsfa, end");
         return;
     }
     
